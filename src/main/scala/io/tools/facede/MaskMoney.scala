@@ -1,12 +1,12 @@
 package io.tools.facede
 
-import org.querki.jquery._
-import org.querki.jsext._
+import org.querki.jquery.*
+import org.querki.jsext.*
 import org.scalajs.dom
 
 import scala.scalajs.js
-import scala.scalajs.js.{|}
 import scala.scalajs.js.annotation.JSGlobal
+import scala.scalajs.js.|
 
 @js.native
 trait MaskMoneyOpt extends js.Object

@@ -4,12 +4,11 @@ import com.raquo.airstream.core.{Observer, Signal}
 import com.raquo.airstream.ownership.DynamicSubscription
 import com.raquo.airstream.state.Var
 import com.raquo.laminar.api.L.*
-import com.raquo.laminar.api.L.DynamicOwner
 import io.tools.facede.Select2.*
-import org.querki.jquery.$
 import io.tools.facede.Select2JQuery.*
-import org.scalajs.dom.{HTMLButtonElement, HTMLOptionElement, window}
+import org.querki.jquery.$
 import org.scalajs.dom
+import org.scalajs.dom.{HTMLButtonElement, HTMLOptionElement, window}
 
 import scala.scalajs.js
 

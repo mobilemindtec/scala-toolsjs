@@ -2,10 +2,11 @@ import sbt.*
 import Keys.*
 import Versions.*
 
-ThisBuild / name := "ScalaJS tools"
 ThisBuild / scalaVersion := "3.6.4"
+ThisBuild / name := "toolsjs"
+ThisBuild / organization := "io.tools"
 
-val lib = (project in file("lib"))
+val toolsjs = (project in file("."))
   .enablePlugins(ScalaJSPlugin)
   .settings(
     name := "toolsjs",

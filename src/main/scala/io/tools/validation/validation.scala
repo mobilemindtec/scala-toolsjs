@@ -140,7 +140,7 @@ object Validation:
     fieldKey: Option[String] = None,
     message: Option[String] = None
   ) extends ValidatorBase(label, message):
-    def valid: Boolean = value != null && !value.trim.isEmpty
+    def valid: Boolean = value != null && value.trim.nonEmpty
     def field: String = fieldKey.getOrElse(label)
 
   case class IntValidator(

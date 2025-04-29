@@ -54,7 +54,7 @@ object Select2:
       write[List[Select2Data]](lst)
 
 object Select2JQuery:
-  import Select2._
+  import Select2.*
   @js.native
   trait Select2 extends JQuery:
     def select2(opts: Select2Opts): JQuery = js.native

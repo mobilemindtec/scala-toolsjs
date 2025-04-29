@@ -2,8 +2,8 @@ package io.tools.components
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import org.querki.jquery.$
 import io.tools.defs.*
+import org.querki.jquery.$
 import org.scalajs.dom.HTMLDivElement
 
 object tabs:

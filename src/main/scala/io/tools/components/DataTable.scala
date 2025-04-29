@@ -2,29 +2,36 @@ package io.tools.components
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveElement
+import io.tools.components.DataTable.*
+import io.tools.util.NumberUtil
 import org.scalajs.dom
 import org.scalajs.dom.{HTMLTableCellElement, HTMLTableRowElement}
 
-import scala.collection.mutable
-import DataTable.*
-import io.tools.util.NumberUtil
-
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import scala.collection.mutable
 
 class DataTable[T](val dtVar: Var[DtConfigs[T]]):
 
-  private var onChange: (DataTable[T], Int) => Unit = null
+  private var onTableChange: (DataTable[T], DtConfigs[T], Int) => Unit = null
+  private val emptyVar = Var(false)
+  private val pageSizeVar = Var("25")
+  private val searchVar = Var("")
+  private val configsUpdatedVar = Var(dtVar.now())
+  private val pageSizes = List("10", "25", "50", "100")
 
   def pageSize = dtVar.now().pageSize
 
   def updateRows(data: Option[List[T]], totalCount: Option[Int], currentIndex: Int = 0) =
     val pageSize = dtVar.now().pageSize
+
+    data.foreach { its => emptyVar.update(_ => its.isEmpty) }
+
     Option((data, totalCount))
       .filter((x, y) => x.nonEmpty && y.nonEmpty)
       .map((x, y) => (x.get, y.get))
       .map((l, t) => {
-        dtVar.update(dt =>
+        dtVar.update(_ =>
           DtConfigs(
             PageConfig(t, pageSize, currentIndex),
             l.map(x => TableRowEvent(x)),
@@ -39,7 +46,7 @@ class DataTable[T](val dtVar: Var[DtConfigs[T]]):
       a(
         href("#"),
         text,
-        onClick --> (_ => onChange(this, pageIdx))
+        onClick --> (_ => onTableChange(this, this.dtVar.now(), pageIdx))
       )
     )
 
@@ -49,7 +56,7 @@ class DataTable[T](val dtVar: Var[DtConfigs[T]]):
       cls := "row",
       div(
         cls := List("col-xs-12", "col-md-6"),
-        span(cls("pull-left"), s"Mostrando de $min até $max de ${cnf.totalCount}")
+        span(cls("pull-left"), s"Exibindo de ${min + 1} até $max de ${cnf.totalCount}")
       ),
       div(
         cls := List("col-xs-12", "col-md-6"),
@@ -60,11 +67,39 @@ class DataTable[T](val dtVar: Var[DtConfigs[T]]):
         )
       )
     )
+  private def tableActions() =
+    div(
+      cls := "row",
+      styleAttr := "padding: 5px 0",
+      div(
+        cls := "col-xs-3",
+        select(
+          cls := "form-control",
+          styleAttr := "width: 80px; float: left; margin-right: 10px",
+          pageSizes.map {
+              case i@"25" => option(i, value := i, selected := true)
+              case i => option(value := i, i)
+          },
+          onChange.mapToValue --> pageSizeVar
+        ),
+        p(
+          styleAttr := "padding: 7px",
+          "Registros por página"
+        )
+      ),
+      div(
+        cls := "col-xs-3 col-xs-offset-6",
+        input(
+          cls := "form-control",
+          placeholder := "Pesquisar...",
+          onInput.mapToValue --> searchVar
+        )
+      )
+    )
 
   private def makePagination(
     cnf: PageConfig
   ): ((Int, Int), mutable.Buffer[TablePage]) =
-    println(cnf)
     val (totalCount, totalPerPage, currPage) = (cnf.totalCount, cnf.totalPerPage, cnf.currentPage)
     val totalPages = math.ceil(totalCount.toDouble / totalPerPage).toInt
     val maxPages = math.min(5, totalPages)
@@ -111,42 +146,74 @@ class DataTable[T](val dtVar: Var[DtConfigs[T]]):
     columns: List[String | ReactiveElement[HTMLTableCellElement]],
     onRow: TableRowEvent[T] => ReactiveElement[HTMLTableRowElement] = r => tr(),
     onRowCel: (Int, TableRowEvent[T]) => ReactiveElement[HTMLTableCellElement],
-    onChange: (DataTable[T], Int) => Unit,
-    onReady: (DataTable[T]) => Unit
+    onChange: (DataTable[T], DtConfigs[T], Int) => Unit,
+    onReady: DataTable[T] => Unit
   ): HtmlElement =
 
-    this.onChange = onChange
+    this.onTableChange = onChange
+    given Owner = unsafeWindowOwner
 
     div(
-      cls := "col-xs-12",
-      table(
-        onMountCallback(_ =>
-          onReady(this)
-          // tablePageVar.update(_ => (10, 7))
-        ),
-        cls("table table-striped table-bordered"),
-        thead(tr(columns.map {
-          case str: String => th(cls("text-center"), str)
-          case x           => x.asInstanceOf[ReactiveElement[HTMLTableCellElement]]
-        })),
-        tbody(
-          children <-- dtVar.signal.map(
-            _.data
-              .map(v =>
-                onRow(v).amend(
-                  columns.indices.map(i => onRowCel(i, v))
-                )
-              )
-              .toSeq
-          )
-        )
-      ),
+      tableActions(),
       div(
-        child.maybe <-- dtVar.signal.map(p =>
-          if p.pageConfig.isEmpty then None else Some(paginate(p.pageConfig))
-        )
+        cls := "row",
+        div(
+          cls := "col-xs-12",
+          table(
+            onMountCallback(_ =>
+              onReady(this)
+              
+              pageSizeVar.signal
+                .combineWith(searchVar.signal)
+                .foreach {
+                  case (size, s) =>
+                    val newState = dtVar.now().copy(pageSize = size.toInt, search = s)
+                    this.dtVar.update(_ => newState)
+                    configsUpdatedVar.update(_ => newState)
+                }
+
+              configsUpdatedVar.signal.foreach {
+                state => onTableChange(this, state, state.pageConfig.currentPage)
+              }
+            ),
+            cls("table table-striped table-bordered"),
+            thead(tr(columns.map {
+              case str: String => th(cls("text-center"), str)
+              case x           => x.asInstanceOf[ReactiveElement[HTMLTableCellElement]]
+            })),
+            tbody(
+              children <-- dtVar.signal.map(
+                _.data
+                  .map(v =>
+                    onRow(v).amend(
+                      columns.indices.map(i => onRowCel(i, v))
+                    )
+                  )
+                  .toSeq
+              )
+            )
+          ),
+          div(
+            child.maybe <-- dtVar.signal.map(p =>
+              if p.pageConfig.isEmpty then None else Some(paginate(p.pageConfig))
+            )
+          )
+        ),
+        child <-- emptyVar.signal.map(emptyMessage)
       )
     )
+
+  private def emptyMessage(empty: Boolean) =
+    if empty
+    then div(
+      cls := "col-xs-12",
+      div(
+        cls := "alert alert-info text-center",
+        "Nenhum registro encontrado"
+      )
+    )
+    else span()
+
 
 object DataTable:
 
@@ -189,7 +256,7 @@ object DataTable:
     columns: List[String | ReactiveElement[HTMLTableCellElement]],
     onRow: TableRowEvent[T] => ReactiveElement[HTMLTableRowElement],
     onRowCel: (Int, TableRowEvent[T]) => ReactiveElement[HTMLTableCellElement],
-    onChange: (DataTable[T], Int) => Unit,
+    onChange: (DataTable[T], DtConfigs[T], Int) => Unit,
     onReady: DataTable[T] => Unit
   ): HtmlElement =
     new DataTable(dtVar).node(columns, onRow, onRowCel, onChange, onReady)
@@ -211,7 +278,8 @@ object DataTable:
   case class DtConfigs[T](
     pageConfig: PageConfig = PageConfig(),
     data: List[TableRowEvent[T]] = List(),
-    pageSize: Int = 0
+    pageSize: Int = 0,
+    search: String = ""
   )
 
   def lnk[T](data: T, text: String, icon: String, click: Option[T => Unit] = None) =

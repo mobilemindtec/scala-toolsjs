@@ -1,19 +1,19 @@
 package io.tools.components
 
-import com.raquo.laminar.api.L.*
 import com.raquo.airstream.core.Signal
+import com.raquo.laminar.api.L
+import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
+import io.tools.components.SelectOption.SelectOption
+import io.tools.components.util.DatePicker.{atTimeNow, dtpicker, dtpickerMaybe}
+import io.tools.facede.ICheck.iCheck
+import io.tools.facede.MaskMoney.{maskMoney, unmasked}
+import io.tools.facede.{MaskMoney, MaskMoneyOpts}
+import io.tools.util.NumberUtil
 import io.tools.validation.Validation.{Feedback, FormValidation}
+import org.querki.jquery.{$, JQueryEventObject}
 import org.scalajs.dom
 import org.scalajs.dom.HTMLElement
-import SelectOption.SelectOption
-import com.raquo.laminar.api.L
-import org.querki.jquery.{$, JQueryEventObject}
-import io.tools.components.util.DatePicker.{atTimeNow, dtpicker}
-import io.tools.facede.{MaskMoney, MaskMoneyOpts}
-import io.tools.facede.MaskMoney.{maskMoney, unmasked}
-import io.tools.facede.ICheck.iCheck
-import io.tools.util.NumberUtil
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -147,7 +147,7 @@ trait InputDate[State](mods: Modifier[ReactiveHtmlElement[HTMLElement]]*)(using
       cls("datepicker"),
       readOnly(true),
       onMountCallback { ctx =>
-        $(".datepicker").dtpicker() { date =>
+        $(ctx.thisNode.ref).dtpicker() { date =>
           (state, writer) match
             case (Some(st), Some(w)) =>
               st.update(s => w(s, date.atTimeNow))
@@ -194,6 +194,68 @@ object InputDate:
       override val validator = v.map(_.validator)
     }
 
+trait InputDateMaybe[State](mods: Modifier[ReactiveHtmlElement[HTMLElement]]*)(
+  using df: DateTimeFormatter
+) extends Component[State, Option[LocalDateTime]]:
+  override def node: ReactiveHtmlElement[dom.html.Element] =
+
+    val el = input(
+      mods,
+      cls("datepicker"),
+      readOnly(true),
+      onMountCallback { ctx =>
+        $(ctx.thisNode.ref).dtpickerMaybe() { date =>
+          (state, writer) match
+            case (Some(st), Some(w)) =>
+              st.update(s => w(s, date.map(_.atTimeNow)))
+            case _ => ()
+        }
+      }
+    )
+    (state, reader) match
+      case (Some(st), Some(f)) =>
+        el.amend(
+          value <-- st
+            .signal
+            .map {
+              s => f(s).map(_.format(df)).getOrElse("")
+            }
+        )
+      case _ => el
+
+object InputDateMaybe:
+
+  type Inputs[State] = Modifier[ReactiveHtmlElement[HTMLElement]] |
+    CAttrReader[State, Option[LocalDateTime]] | CAttrWriter[State, Option[LocalDateTime]] | CAttrValidator |
+    CAttrState[State]
+
+  /** {{{
+   *   InputDate(
+   *     state := stateVar,
+   *     validator := error(_.validator.find("vencimento")),
+   *     reader := { (state: ContaPagar) => state.primeiroVencimento },
+   *     writer := { (state: ContaPagar, d: LocalDateTime) => state.copy(primeiroVencimento = d) },
+   *   )
+   * }}}
+   *
+   * @param state
+   * @param mods
+   * @tparam State
+   * @return
+   */
+  def apply[State](mods: Inputs[State]*): DateTimeFormatter ?=> InputDateMaybe[State] =
+    val atts = mods.collect { case r: ReactiveHtmlElement[HTMLElement] => r }
+    val r = mods.collectFirst { case r: CAttrReader[State, Option[LocalDateTime]] => r }
+    val w = mods.collectFirst { case r: CAttrWriter[State, Option[LocalDateTime]] => r }
+    val v = mods.collectFirst { case r: CAttrValidator => r }
+    val st = mods.collectFirst { case r: CAttrState[State] => r }
+    new InputDateMaybe[State](atts *) {
+      override val state = st.map(_.state)
+      override val reader = r.map(_.f)
+      override val writer = w.map(_.f)
+      override val validator = v.map(_.validator)
+    }
+
 // InputMoney
 trait InputMoney[State](opts: MaskMoneyOpts, mods: Modifier[ReactiveHtmlElement[HTMLElement]]*)
   extends Component[State, Double]:
@@ -202,7 +264,7 @@ trait InputMoney[State](opts: MaskMoneyOpts, mods: Modifier[ReactiveHtmlElement[
       mods,
       cls("number"),
       onMountCallback { ctx =>
-        val mask = $(".number")
+        val mask = $(ctx.thisNode.ref)
           .maskMoney(opts)
 
         mask.on(

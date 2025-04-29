@@ -2,9 +2,9 @@ package io.tools.styles
 
 import com.raquo.laminar.api.L.*
 import com.raquo.laminar.tags.HtmlTag
+import io.tools.CustomReactiveElement
 import org.scalajs.dom
 import org.scalajs.dom.HTMLElement
-import io.tools.CustomReactiveElement
 
 object Fontawesome:
 

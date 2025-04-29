@@ -5,14 +5,20 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import io.tools.validation.Validation.{Feedback, FormValidation}
 import org.scalajs.dom
-import org.scalajs.dom.HTMLElement
+import org.scalajs.dom.{HTMLDivElement, HTMLElement}
 
-def box(title: String, titleChildren: Mod[HtmlElement]*)(
-  children: Mod[HtmlElement]*
-): HtmlElement =
-  box(Signal.fromValue(None), title, titleChildren)(children)
+def boxTitle(title: Mod[HtmlElement], backButton: Mod[HtmlElement] = span()): HtmlElement =
+  boxTitleWithChildren(title, backButton)()
+  
+def boxTitleWithChildren(title: Mod[HtmlElement], backButton: Mod[HtmlElement] = span()) (children: Mod[HtmlElement]*): HtmlElement =
+  div(
+    cls("ibox-title"),
+    backButton,
+    h5(title, cls("text-center")),
+    children
+  )
 
-def box(back: Signal[Option[HtmlElement]], title: String, titleChildren: Mod[HtmlElement]*)(
+def box(title: Mod[HtmlElement])(
   children: Mod[HtmlElement]*
 ): HtmlElement =
   div(
@@ -21,12 +27,7 @@ def box(back: Signal[Option[HtmlElement]], title: String, titleChildren: Mod[Htm
       cls(List("col-md-12", "col-xs-12")),
       div(
         cls(List("ibox", "float-e-margins")),
-        div(
-          cls("ibox-title"),
-          child.maybe <-- back,
-          h5(title, cls("text-center")),
-          titleChildren
-        ),
+        title,
         div(
           cls("ibox-content"),
           children
