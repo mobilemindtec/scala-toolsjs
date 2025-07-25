@@ -8,9 +8,16 @@ import org.scalajs.dom.HTMLDivElement
 
 object tabs:
 
-  def apply(titles: String*)(elements: HtmlElement*): ReactiveHtmlElement[HTMLDivElement] =
+  private val activeVar: Var[Option[TabItem]] = Var(None)
+
+  case class TabItem(key: String, title: String, active: Boolean, el: HtmlElement)
+
+  def apply(items: TabItem*): ReactiveHtmlElement[HTMLDivElement] = {
     div(
-      onMountCallback { _ => },
+      onMountCallback { _ =>
+        if activeVar.now().isEmpty
+        then activeVar.update( _ => items.find(_.active))
+      },
       cls := "row",
       div(
         cls := "col-xs-12",
@@ -19,28 +26,32 @@ object tabs:
           ul(
             cls := "nav nav-tabs",
             role := "tablist",
-            titles.mapWithIndex { (i, el) =>
+            items.map { item =>
               li(
-                cls := (if i == 0 then "active" else ""),
+                cls.toggle("active") <-- activeVar.signal.map(_.exists(_.key == item.key)),
+                cls.toggle("") <-- activeVar.signal.map(_.exists(_.key == item.key)).invert,
                 a(
-                  cls := s"nav-link ${if i == 0 then "active" else ""}",
-                  href := s"#tab-$i",
+                  cls.toggle("nav-link active") <-- activeVar.signal.map(_.exists(_.key == item.key)),
+                  cls.toggle("nav-link") <-- activeVar.signal.map(_.exists(_.key == item.key)).invert,
+                  href := s"#tab-${item.key}",
                   dataAttr("toggle") := "tab",
-                  el
+                  item.title,
+                  onClick.preventDefault --> (_ => activeVar.update(_ => Some(item)))
                 )
               )
             }
           ),
           div(
             cls := "tab-content",
-            elements.mapWithIndex { (i, el) =>
+            items.map { item =>
               div(
-                idAttr := s"tab-$i",
-                cls := s"tab-pane ${if i == 0 then "active" else ""}",
+                idAttr := s"tab-${item.key}",
+                cls.toggle("tab-pane active") <-- activeVar.signal.map(_.exists(_.key == item.key)),
+                cls.toggle("tab-pane") <-- activeVar.signal.map(_.exists(_.key == item.key)).invert,
                 role := "tabpanel",
                 div(
                   cls := "panel-body",
-                  el
+                  item.el
                 )
               )
             }
@@ -48,3 +59,4 @@ object tabs:
         )
       )
     )
+  }

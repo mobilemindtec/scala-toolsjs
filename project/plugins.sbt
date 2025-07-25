@@ -1,5 +1,5 @@
-val scalajsVersion = "1.18.2"
-val livereloadVersion = "0.2.10"
+val scalajsVersion = "1.19.0"
+val livereloadVersion = "0.2.11"
 
 addSbtPlugin("org.scala-js" % "sbt-scalajs" % scalajsVersion)
 addSbtPlugin("br.com.mobilemind" % "livereload" % livereloadVersion)

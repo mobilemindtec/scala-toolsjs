@@ -173,8 +173,11 @@ class DataTable[T](val dtVar: Var[DtConfigs[T]]):
                 }
 
               configsUpdatedVar.signal.foreach {
-                state => onTableChange(this, state, state.pageConfig.currentPage)
+                state =>
+                  onTableChange(this, state, state.pageConfig.currentPage)
               }
+
+              
             ),
             cls("table table-striped table-bordered"),
             thead(tr(columns.map {
